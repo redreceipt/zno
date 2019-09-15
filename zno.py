@@ -11,21 +11,25 @@ def _safeRequest(url):
     return requests.get(url, headers=headers)
 
 
-def isTitleSafe(title):
+def getInfo(title):
     """This will return the information of a title from a search term."""
 
+    info = {}
     baseURL = "https://www.mrskin.com"
     url = baseURL + "/search/titles?term=" + title
     response = _safeRequest(url)
 
     searchPage = html.fromstring(response.content)
-    titles = searchPage.xpath('//div[@class="thumbnail-image "]/a')
+    titles = searchPage.xpath('//div[@class="thumbnail title"]')
     if titles == []:
         raise Exception("No titles found")
 
     # pick the first one
-    titleURL = baseURL + titles[0].attrib["href"]
-    # TODO: also return title image to verify it's the right one
+    titleURL = baseURL + titles[0].xpath('./div/a')[0].attrib["href"]
+    info["imgSrc"] = titles[0].xpath('./div/a/img')[0].attrib["data-src"]
+    info["title"] = titles[0].xpath(
+        './/div[@class="caption"]/a')[0].attrib["title"]
+
     response = _safeRequest(titleURL)
     titlePage = html.fromstring(response.content)
     chars = titlePage.xpath(
@@ -33,22 +37,18 @@ def isTitleSafe(title):
     if chars == []:
         raise Exception("Something went wrong, HTML may have changed")
     for char in chars:
-        print(html.tostring(char))
         nodes = char.xpath('./*')
         severity = nodes[0].text.lower()
         if severity not in ["nude", "sexy"]:
-            print(html.tostring(nodes[0]))
-            raise Exception("Something went wrong, can't decide if it's safe.")
+            raise Exception(
+                "Something went wrong, can't decide if it's safe.\n" +
+                html.tostring(nodes[0]))
         if severity == "nude":
-            return False
-    return True
-
-    # nudeCharacters = titlePage.xpath(
-    # '//p[@class="h5 appearance-character"]/span[@class="text-danger"]')
-    # if nudeCharacters != []:
-    # return False
-    # return True
+            info["safe"] = False
+        else:
+            info["safe"] = True
+        return info
 
 
 if __name__ == "__main__":
-    print(isTitleSafe("knocked up"))
+    print(getInfo("gladiator"))
