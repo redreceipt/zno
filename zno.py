@@ -5,10 +5,7 @@ import requests
 from dotenv import load_dotenv
 from lxml import html
 
-load_dotenv()
-
 baseURL = "https://www.mrskin.com"
-
 headers = {
     'User-Agent':
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36',
@@ -20,7 +17,7 @@ class ZnOBrowser:
     def __init__(self):
 
         load_dotenv()
-        self.baseURL = "https://mrskin.com"
+        self.baseURL = "https://www.mrskin.com"
         self.user = os.getenv("MRSKIN_USER")
         self.pw = os.getenv("MRSKIN_PW")
         self.headers = {
@@ -33,24 +30,26 @@ class ZnOBrowser:
         """Sets a new session."""
         self.session = session
 
-    def getTree(self, url):
+    def getPage(self, path):
         """Gets HTML tree."""
 
-        fullURL = baseURL + url
+        url = self.baseURL + path
         if self.session:
-            return html.fromstring(
-                self.session.get(fullURL, headers=self.headers).content)
+            response = self.session.get(url, headers=self.headers)
         else:
-            return html.fromstring(
-                requests.get(fullURL, headers=self.headers).content)
+            response = requests.get(url, headers=self.headers)
+
+        tree = html.fromstring(response.content)
+        path = response.url.split(self.baseURL)[1]
+        return {"path": path, "tree": tree}
 
     def login(self):
         """Logs in."""
         if not self.session:
             raise Exception("No session found. use setSession.")
 
-        loginURL = "/account/login"
-        tree = self.getTree(loginURL)
+        path = "/account/login"
+        tree = self.getTree(path)
         token = tree.xpath(
             "//input[@name='authenticity_token']")[0].attrib["value"]
 
@@ -64,7 +63,7 @@ class ZnOBrowser:
             "commit": "Please Sign In",
         }
 
-        self.session.post(loginURL, data=payload, headers=headers)
+        self.session.post(path, data=payload, headers=self.headers)
 
 
 def _login():
@@ -107,27 +106,25 @@ def getInfo(query, session=None):
     """This will return the information of a title from a search term."""
 
     info = {}
-
     browser = ZnOBrowser()
-    searchPage = browser.getTree("/search/titles?term=" + query)
-    # searchURL = baseURL + "/search/titles?term=" + query
-    # searchPage = html.fromstring(_request(searchURL).content)
-    titles = searchPage.xpath('//div[@class="thumbnail title"]')
+
+    xml = browser.getPage("/search/titles?term=" + query)["tree"]
+    titles = xml.xpath('//div[@class="thumbnail title"]')
     if titles == []:
         raise Exception("No titles found")
 
     # pick the first one
-    titleURL = baseURL + titles[0].xpath('./div/a')[0].attrib["href"]
+    titlePath = titles[0].xpath('./div/a')[0].attrib["href"]
     info["imgSrc"] = titles[0].xpath('./div/a/img')[0].attrib["data-src"]
     info["title"] = titles[0].xpath(
         './/div[@class="caption"]/a')[0].attrib["title"]
 
-    response = _request(titleURL)
-    titleURL = response.url.split(baseURL)[1]
-    titlePage = html.fromstring(response.content)
+    titlePage = browser.getPage(titlePath)
+    path = titlePage["path"]
+    xml = titlePage["tree"]
 
     # get all title characters info
-    chars = titlePage.xpath(
+    chars = xml.xpath(
         '//div[@id="celebs-section"]//p[@class="h5 appearance-character"]')
     if chars == []:
         raise Exception("Something went wrong, HTML may have changed")
@@ -170,7 +167,7 @@ def getInfo(query, session=None):
                 response = _request(celebURL, True)
                 celebPage = html.fromstring(response.content)
                 media = celebPage.xpath(
-                    f'//a[@href="{baseURL + titleURL}"]/..//div[@class="media-body"]'
+                    f'//a[@href="{baseURL + path}"]/..//div[@class="media-body"]'
                 )
                 if len(media) < 1:
                     raise Exception(
