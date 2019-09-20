@@ -120,7 +120,7 @@ def getInfo(query, session=None):
         './/div[@class="caption"]/a')[0].attrib["title"]
 
     titlePage = browser.getPage(titlePath)
-    path = titlePage["path"]
+    titlePath = titlePage["path"]
     xml = titlePage["tree"]
 
     # get all title characters info
@@ -167,7 +167,7 @@ def getInfo(query, session=None):
                 response = _request(celebURL, True)
                 celebPage = html.fromstring(response.content)
                 media = celebPage.xpath(
-                    f'//a[@href="{baseURL + path}"]/..//div[@class="media-body"]'
+                    f'//a[@href="{baseURL + titlePath}"]/..//div[@class="media-body"]'
                 )
                 if len(media) < 1:
                     raise Exception(
