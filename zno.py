@@ -2,7 +2,10 @@ import os
 import pprint
 
 import requests
+from dotenv import load_dotenv
 from lxml import html
+
+load_dotenv()
 
 baseURL = "https://www.mrskin.com"
 
@@ -105,6 +108,10 @@ def getInfo(title, session=None):
                 media = celebPage.xpath(
                     f'//a[@href="{baseURL + titleURL}"]/..//div[@class="media-body"]'
                 )
+                if len(media) < 1:
+                    raise Exception(
+                        "Something went wrong, may not be logged in.")
+
                 for scene in media:
                     keywords = scene.xpath(
                         './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
