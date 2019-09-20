@@ -9,15 +9,65 @@ load_dotenv()
 
 baseURL = "https://www.mrskin.com"
 
+headers = {
+    'User-Agent':
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36',
+}
 
-def _request(url, auth=False):
 
-    headers = {
-        'User-Agent':
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36',
-    }
-    if not auth:
-        return requests.get(url, headers=headers)
+class ZnOBrowser:
+    """ZnO browser that handles login."""
+    def __init__(self):
+
+        load_dotenv()
+        self.baseURL = "https://mrskin.com"
+        self.user = os.getenv("MRSKIN_USER")
+        self.pw = os.getenv("MRSKIN_PW")
+        self.headers = {
+            'User-Agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36',
+        }
+        self.session = None
+
+    def setSession(self, session):
+        """Sets a new session."""
+        self.session = session
+
+    def getTree(self, url):
+        """Gets HTML tree."""
+
+        fullURL = baseURL + url
+        if self.session:
+            return html.fromstring(
+                self.session.get(fullURL, headers=self.headers).content)
+        else:
+            return html.fromstring(
+                requests.get(fullURL, headers=self.headers).content)
+
+    def login(self):
+        """Logs in."""
+        if not self.session:
+            raise Exception("No session found. use setSession.")
+
+        loginURL = "/account/login"
+        tree = self.getTree(loginURL)
+        token = tree.xpath(
+            "//input[@name='authenticity_token']")[0].attrib["value"]
+
+        payload = {
+            "utf8": "✓",
+            "_tgt_url": "/",
+            "authenticity_token": token,
+            "customer[username]": self.user,
+            "customer[password]": self.pw,
+            "customer[remember_me]": "0",
+            "commit": "Please Sign In",
+        }
+
+        self.session.post(loginURL, data=payload, headers=headers)
+
+
+def _login():
 
     with requests.Session() as session:
 
@@ -39,19 +89,29 @@ def _request(url, auth=False):
             "commit": "Please Sign In",
         }
 
-        response = session.post(loginURL, data=payload, headers=headers)
-        response = session.get(url, headers=headers)
+        session.post(loginURL, data=payload, headers=headers)
+        return session
 
+
+def _request(url, auth=False):
+
+    if not auth:
+        return requests.get(url, headers=headers)
+
+    s = _login()
+    response = s.get(url, headers=headers)
     return response
 
 
-def getInfo(title, session=None):
+def getInfo(query, session=None):
     """This will return the information of a title from a search term."""
 
     info = {}
 
-    searchURL = baseURL + "/search/titles?term=" + title
-    searchPage = html.fromstring(_request(searchURL).content)
+    browser = ZnOBrowser()
+    searchPage = browser.getTree("/search/titles?term=" + query)
+    # searchURL = baseURL + "/search/titles?term=" + query
+    # searchPage = html.fromstring(_request(searchURL).content)
     titles = searchPage.xpath('//div[@class="thumbnail title"]')
     if titles == []:
         raise Exception("No titles found")
@@ -73,7 +133,11 @@ def getInfo(title, session=None):
         raise Exception("Something went wrong, HTML may have changed")
     info["people"] = []
     severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
-    keywordOptions = ["butt", "breasts"]
+    # TODO need to make this smaller
+    keywordOptions = [
+        "butt", "breasts", "breasts, body double", "breasts, butt",
+        "butt, body double", "breasts, butt, body double"
+    ]
     safe = True
     for char in chars:
         nodes = char.xpath('./*')
@@ -115,12 +179,12 @@ def getInfo(title, session=None):
                 for scene in media:
                     keywords = scene.xpath(
                         './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
-                    )
-                    if keywords[0] not in keywordOptions:
+                    )[0]
+                    if keywords not in keywordOptions:
                         raise Exception(
-                            "Keyword not found, can't decide if it's safe.\n" +
-                            str(html.tostring(keywords[0])))
-                    if keywords[0] not in safeKeywords:
+                            f"Keyword \"{keywords}\" not found, can't decide if it's safe.\n"
+                        )
+                    if keywords not in safeKeywords:
                         safe = False
 
                     # TODO pull out episode and time but leave out description
@@ -128,8 +192,8 @@ def getInfo(title, session=None):
                     description = scene.xpath(
                         './/span[@class="scene-description"]//text()')
                     scenes.append({
-                        "keywords": "".join(keywords),
-                        "description": "".join(description)
+                        "keywords": keywords,
+                        "description": "".join(description).strip()
                     })
 
             else:
@@ -147,4 +211,4 @@ def getInfo(title, session=None):
 
 
 if __name__ == "__main__":
-    pprint.pprint(getInfo("lucifer"))
+    pprint.pprint(getInfo("fight club"))
