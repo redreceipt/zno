@@ -1,3 +1,4 @@
+import os
 import pprint
 
 import requests
@@ -15,13 +16,28 @@ def _request(url, auth=False):
     if not auth:
         return requests.get(url, headers=headers)
 
-    creds = {"customer[username]": "USER", "customer[password]": "PASS"}
     with requests.Session() as session:
-        post = session.post(baseURL + "/account/login",
-                            data=creds,
-                            headers=headers)
-        print(post.text)
-        response = session.get(baseURL + url, headers=headers)
+
+        loginURL = baseURL + "/account/login"
+        response = session.get(loginURL, headers=headers)
+        loginPage = html.fromstring(response.content)
+        token = loginPage.xpath(
+            "//input[@name='authenticity_token']")[0].attrib["value"]
+        user = os.getenv("MRSKIN_USER")
+        pw = os.getenv("MRSKIN_PW")
+
+        payload = {
+            "utf8": "✓",
+            "_tgt_url": "/",
+            "authenticity_token": token,
+            "customer[username]": user,
+            "customer[password]": pw,
+            "customer[remember_me]": "0",
+            "commit": "Please Sign In",
+        }
+
+        response = session.post(loginURL, data=payload, headers=headers)
+        response = session.get(url, headers=headers)
 
     return response
 
@@ -53,6 +69,8 @@ def getInfo(title, session=None):
     if chars == []:
         raise Exception("Something went wrong, HTML may have changed")
     info["people"] = []
+    severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
+    keywordOptions = ["butt", "breasts"]
     safe = True
     for char in chars:
         nodes = char.xpath('./*')
@@ -64,29 +82,51 @@ def getInfo(title, session=None):
             severity = nodes[0].text
         celeb = char.xpath('..//a')[0].text
 
+        if severity not in severityOptions:
+            raise Exception(
+                "Severity not found, can't decide if it's safe.\n" +
+                str(html.tostring(char)))
+
+        # TODO adjustable
+        fullSafeMode = False
+
         # add more info if nude scenes
         scenes = []
-        # TODO: once I figure out auth
-        '''
         if "Nude" in severity:
-            celebURL = baseURL + char.xpath(
-                '..//a')[0].attrib["href"] + "/nude_scene_guide"
-            response = _request(celebURL, True)
-            celebPage = html.fromstring(response.content)
-            media = celebPage.xpath(
-                f'//a[@href="{titleURL}"]/..//div[@class="media-body"]')
-            print(html.tostring(media[0]))
-            raise Exception
-            for scene in media:
-                keywords = scene.xpath(
-                    './/span[@class="scene-keywords"]//text()')
-                description = scene.xpath(
-                    './/span[@class="scene-description"]//text()')
-                scenes.append({
-                    "keywords": "".join(keywords),
-                    "description": "".join(description)
-                })
-        '''
+            if not fullSafeMode:
+
+                # TODO adjustable
+                safeKeywords = ["butt"]
+
+                celebURL = baseURL + char.xpath(
+                    '..//a')[0].attrib["href"] + "/nude_scene_guide"
+                response = _request(celebURL, True)
+                celebPage = html.fromstring(response.content)
+                media = celebPage.xpath(
+                    f'//a[@href="{baseURL + titleURL}"]/..//div[@class="media-body"]'
+                )
+                for scene in media:
+                    keywords = scene.xpath(
+                        './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
+                    )
+                    if keywords[0] not in keywordOptions:
+                        raise Exception(
+                            "Keyword not found, can't decide if it's safe.\n" +
+                            str(html.tostring(keywords[0])))
+                    if keywords[0] not in safeKeywords:
+                        safe = False
+
+                    # TODO pull out episode and time but leave out description
+                    # they seem too explicit
+                    description = scene.xpath(
+                        './/span[@class="scene-description"]//text()')
+                    scenes.append({
+                        "keywords": "".join(keywords),
+                        "description": "".join(description)
+                    })
+
+            else:
+                safe = False
 
         info["people"].append({
             "actor": celeb,
@@ -94,12 +134,6 @@ def getInfo(title, session=None):
             "severity": severity,
             "nude scenes": scenes
         })
-        if severity not in ["N/A", "Nude", "Sexy", "Nude - Body Double"]:
-            raise Exception(
-                "Something went wrong, can't decide if it's safe.\n" +
-                str(html.tostring(char)))
-        if severity == "Nude":
-            safe = False
 
     info["safe"] = safe
     return info
