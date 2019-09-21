@@ -111,7 +111,7 @@ def getInfo(query):
     ]
     info["people"] = []
     safe = True
-    episodes = set([])
+    times = set([])
 
     with requests.Session() as s:
         browser.setSession(s)
@@ -189,7 +189,10 @@ def getInfo(query):
                         if text[0]:
                             scenes[-1]["season"] = text[0][0]
                             scenes[-1]["episode"] = text[0][1]
-                            episodes.add(f"Ep {text[0][0]}x{text[0][1]}")
+                            times.add(
+                                f"Ep {text[0][0]}x{text[0][1]} | {start}")
+                        else:
+                            times.add(f"{start}")
                         scenes[-1]["keywords"] = keywords
                         scenes[-1]["time"] = start
                         scenes[-1]["duration"] = duration
@@ -205,12 +208,11 @@ def getInfo(query):
                 "actor": celeb,
                 "character": name,
                 "severity": severity,
-                "nude scenes": scenes
+                "scenes": scenes
             })
 
     info["safe"] = safe
-    if len(episodes):
-        info["episodes"] = sorted(episodes)
+    info["times"] = sorted(times)
     return info
 
 
