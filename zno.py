@@ -83,7 +83,7 @@ def _extract(regex, text):
     return [groups, text]
 
 
-def getInfo(query, session=None):
+def getInfo(query):
     """This will return the information of a title from a search term."""
 
     info = {}
