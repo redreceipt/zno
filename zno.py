@@ -62,13 +62,9 @@ class ZnOBrowser:
             raise
 
         payload = {
-            "utf8": "✓",
-            "_tgt_url": "/",
             "authenticity_token": token,
             "customer[username]": self.user,
             "customer[password]": self.pw,
-            "customer[remember_me]": "0",
-            "commit": "Please Sign In",
         }
 
         url = self.baseURL + path
@@ -166,6 +162,7 @@ def getInfo(query, session=None):
                         f"{len(media)} {'scene' if len(media) == 1 else 'scenes'}"
                     )
                     for scene in media:
+                        scenes.append({})
                         time.sleep(2)
                         keywords = scene.xpath(
                             './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
@@ -188,19 +185,15 @@ def getInfo(query, session=None):
                         text = _extract(r"\((\d.*secs)\)", text[1])
                         duration = text[0][0]
                         text = _extract(r"Ep. (\d+)x(\d+) \|", text[1])
-                        season = text[0][0]
-                        episode = text[0][1]
-                        episodes.add(f"Ep {season}x{episode}")
-                        description = html.unescape(text[1].strip())
-                        scenes.append({
-                            "keywords": keywords,
-                            "time": start,
-                            "duration": duration,
-                            "description": description
-                        })
-                        if season or episode:
-                            scenes[-1]["season"] = season
-                            scenes[-1]["episode"] = episode
+                        if text[0]:
+                            scenes[-1]["season"] = text[0][0]
+                            scenes[-1]["episode"] = text[0][1]
+                            episodes.add(f"Ep {text[0][0]}x{text[0][1]}")
+                        scenes[-1]["keywords"] = keywords
+                        scenes[-1]["time"] = start
+                        scenes[-1]["duration"] = duration
+                        scenes[-1]["description"] = html.unescape(
+                            text[1].strip())
 
                 else:
                     safe = False
@@ -221,4 +214,4 @@ def getInfo(query, session=None):
 
 
 if __name__ == "__main__":
-    pprint.pprint(getInfo("peaky blinders"))
+    pprint.pprint(getInfo("braveheart"))
