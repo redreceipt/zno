@@ -1,15 +1,12 @@
+import html
 import os
 import pprint
+import re
+import time
 
 import requests
 from dotenv import load_dotenv
-from lxml import html
-
-baseURL = "https://www.mrskin.com"
-headers = {
-    'User-Agent':
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36',
-}
+from lxml.html import fromstring, tostring
 
 
 class ZnOBrowser:
@@ -39,7 +36,13 @@ class ZnOBrowser:
         else:
             response = requests.get(url, headers=self.headers)
 
-        tree = html.fromstring(response.content)
+        code = response.status_code
+        # TODO if 429 (too many requests) inspect the Retry-after header to
+        # sleep and try again
+        if code != 200:
+            print(response.headers)
+            raise Exception(f"Request not succesful. Status: {code}")
+        tree = fromstring(response.content)
         path = response.url.split(self.baseURL)[1]
         return {"path": path, "tree": tree}
 
@@ -49,9 +52,14 @@ class ZnOBrowser:
             raise Exception("No session found. use setSession.")
 
         path = "/account/login"
-        tree = self.getTree(path)
-        token = tree.xpath(
-            "//input[@name='authenticity_token']")[0].attrib["value"]
+        xml = self.getPage(path)["tree"]
+        try:
+            token = xml.xpath(
+                "//input[@name='authenticity_token']")[0].attrib["value"]
+        # TODO find out what error keeps throwing
+        except:
+            print(tostring(xml))
+            raise
 
         payload = {
             "utf8": "✓",
@@ -63,43 +71,19 @@ class ZnOBrowser:
             "commit": "Please Sign In",
         }
 
-        self.session.post(path, data=payload, headers=self.headers)
+        url = self.baseURL + path
+        self.session.post(url, data=payload, headers=self.headers)
 
 
-def _login():
+def _extract(regex, text):
 
-    with requests.Session() as session:
-
-        loginURL = baseURL + "/account/login"
-        response = session.get(loginURL, headers=headers)
-        loginPage = html.fromstring(response.content)
-        token = loginPage.xpath(
-            "//input[@name='authenticity_token']")[0].attrib["value"]
-        user = os.getenv("MRSKIN_USER")
-        pw = os.getenv("MRSKIN_PW")
-
-        payload = {
-            "utf8": "✓",
-            "_tgt_url": "/",
-            "authenticity_token": token,
-            "customer[username]": user,
-            "customer[password]": pw,
-            "customer[remember_me]": "0",
-            "commit": "Please Sign In",
-        }
-
-        session.post(loginURL, data=payload, headers=headers)
-        return session
-
-
-def _request(url, auth=False):
-
-    if not auth:
-        return requests.get(url, headers=headers)
-
-    s = _login()
-    response = s.get(url, headers=headers)
-    return response
+    m = re.search(regex, text)
+    if m:
+        groups = m.groups()
+        text = text.replace(m[0], "")
+    else:
+        groups = None
+    return [groups, text]
 
 
 def getInfo(query, session=None):
@@ -123,89 +107,118 @@ def getInfo(query, session=None):
     titlePath = titlePage["path"]
     xml = titlePage["tree"]
 
-    # get all title characters info
-    chars = xml.xpath(
-        '//div[@id="celebs-section"]//p[@class="h5 appearance-character"]')
-    if chars == []:
-        raise Exception("Something went wrong, HTML may have changed")
-    info["people"] = []
     severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
-    # TODO need to make this smaller
     keywordOptions = [
-        "butt", "breasts", "breasts, body double", "breasts, butt",
-        "butt, body double", "breasts, butt, body double"
+        "butt", "breasts", "body double", "underwear", "prosthetic", "lesbian",
+        "thong", "bush"
     ]
+    info["people"] = []
     safe = True
-    for char in chars:
-        nodes = char.xpath('./*')
-        if len(nodes) < 2:
-            name = nodes[0].text
-            severity = "N/A"
-        else:
-            name = nodes[1].text
-            severity = nodes[0].text
-        celeb = char.xpath('..//a')[0].text
+    episodes = set([])
 
-        if severity not in severityOptions:
-            raise Exception(
-                "Severity not found, can't decide if it's safe.\n" +
-                str(html.tostring(char)))
+    with requests.Session() as s:
+        browser.setSession(s)
+        browser.login()
 
-        # TODO adjustable
-        fullSafeMode = False
-
-        # add more info if nude scenes
-        scenes = []
-        if "Nude" in severity:
-            if not fullSafeMode:
-
-                # TODO adjustable
-                safeKeywords = ["butt"]
-
-                celebURL = baseURL + char.xpath(
-                    '..//a')[0].attrib["href"] + "/nude_scene_guide"
-                response = _request(celebURL, True)
-                celebPage = html.fromstring(response.content)
-                media = celebPage.xpath(
-                    f'//a[@href="{baseURL + titlePath}"]/..//div[@class="media-body"]'
-                )
-                if len(media) < 1:
-                    raise Exception(
-                        "Something went wrong, may not be logged in.")
-
-                for scene in media:
-                    keywords = scene.xpath(
-                        './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
-                    )[0]
-                    if keywords not in keywordOptions:
-                        raise Exception(
-                            f"Keyword \"{keywords}\" not found, can't decide if it's safe.\n"
-                        )
-                    if keywords not in safeKeywords:
-                        safe = False
-
-                    # TODO pull out episode and time but leave out description
-                    # they seem too explicit
-                    description = scene.xpath(
-                        './/span[@class="scene-description"]//text()')
-                    scenes.append({
-                        "keywords": keywords,
-                        "description": "".join(description).strip()
-                    })
-
+        # get all title characters info
+        chars = xml.xpath(
+            '//div[@id="celebs-section"]//p[@class="h5 appearance-character"]')
+        if chars == []:
+            raise Exception("Something went wrong, HTML may have changed")
+        for char in chars:
+            nodes = char.xpath('./*')
+            if len(nodes) < 2:
+                name = nodes[0].text
+                severity = "N/A"
             else:
-                safe = False
+                name = nodes[1].text
+                severity = nodes[0].text
+            celeb = char.xpath('..//a')[0].text
+            print(celeb)
 
-        info["people"].append({
-            "actor": celeb,
-            "character": name,
-            "severity": severity,
-            "nude scenes": scenes
-        })
+            if severity not in severityOptions:
+                raise Exception(
+                    "Severity not found, can't decide if it's safe.\n" +
+                    str(tostring(char)))
+
+            # TODO adjustable
+            maxSafeMode = False
+
+            # add more info if nude scenes
+            scenes = []
+            if "Nude" in severity:
+                if not maxSafeMode:
+
+                    safeKeywords = ["butt"]
+
+                    celebPath = char.xpath(
+                        '..//a')[0].attrib["href"] + "/nude_scene_guide"
+
+                    xml = browser.getPage(celebPath)["tree"]
+                    media = xml.xpath(
+                        f'//a[@href="{browser.baseURL + titlePath}"]/..//div[@class="media-body"]'
+                    )
+                    if len(media) < 1:
+                        raise Exception(
+                            "Something went wrong, may not be logged in.")
+
+                    print(
+                        f"{len(media)} {'scene' if len(media) == 1 else 'scenes'}"
+                    )
+                    for scene in media:
+                        time.sleep(2)
+                        keywords = scene.xpath(
+                            './/span[@class="scene-keywords"]//span[@class="text-muted"]//text()'
+                        )[0].split(",")
+                        keywords = list(map(lambda x: x.strip(), keywords))
+                        for keyword in keywords:
+                            if keyword not in keywordOptions:
+                                raise Exception(
+                                    f"Keyword \"{keyword}\" not found, can't decide if it's safe.\n"
+                                )
+                            if keyword not in safeKeywords:
+                                safe = False
+
+                        description = scene.xpath(
+                            './/span[@class="scene-description"]//text()')
+                        description = "".join(description).strip()
+                        print(description)
+                        text = _extract(r"(\d+:\d+:\d+)", description)
+                        start = text[0][0]
+                        text = _extract(r"\((\d.*secs)\)", text[1])
+                        duration = text[0][0]
+                        text = _extract(r"Ep. (\d+)x(\d+) \|", text[1])
+                        season = text[0][0]
+                        episode = text[0][1]
+                        episodes.add(f"Ep {season}x{episode}")
+                        description = html.unescape(text[1].strip())
+                        scenes.append({
+                            "keywords": keywords,
+                            "time": start,
+                            "duration": duration,
+                            "description": description
+                        })
+                        if season or episode:
+                            scenes[-1]["season"] = season
+                            scenes[-1]["episode"] = episode
+
+                else:
+                    safe = False
+            else:
+                time.sleep(2)
+
+            info["people"].append({
+                "actor": celeb,
+                "character": name,
+                "severity": severity,
+                "nude scenes": scenes
+            })
 
     info["safe"] = safe
+    if len(episodes):
+        info["episodes"] = sorted(episodes)
     return info
 
 
 if __name__ == "__main__":
-    pprint.pprint(getInfo("fight club"))
+    pprint.pprint(getInfo("peaky blinders"))
