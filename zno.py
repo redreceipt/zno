@@ -2,6 +2,7 @@ import html
 import os
 import pprint
 import re
+import sys
 import time
 
 import requests
@@ -214,4 +215,4 @@ def getInfo(query, session=None):
 
 
 if __name__ == "__main__":
-    pprint.pprint(getInfo("braveheart"))
+    pprint.pprint(getInfo(sys.argv[1]))
