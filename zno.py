@@ -72,15 +72,15 @@ class ZnOBrowser:
         self.session.post(url, data=payload, headers=self.headers)
 
 
-def _extract(regex, text):
+def _extractRegex(regex, text):
 
+    groups = []
+    remainder = text
     m = re.search(regex, text)
     if m:
         groups = m.groups()
-        text = text.replace(m[0], "")
-    else:
-        groups = None
-    return [groups, text]
+        remainder = text.replace(m[0], "")
+    return {"groups": groups, "remainder": remainder}
 
 
 def getInfo(query):
@@ -181,23 +181,29 @@ def getInfo(query):
                             './/span[@class="scene-description"]//text()')
                         description = "".join(description).strip()
                         print(description)
-                        text = _extract(r"(\d+:\d+:\d+)", description)
-                        start = text[0][0]
-                        text = _extract(r"\((\d.*secs)\)", text[1])
-                        duration = text[0][0]
-                        text = _extract(r"Ep. (\d+)x(\d+) \|", text[1])
-                        if text[0]:
-                            scenes[-1]["season"] = text[0][0]
-                            scenes[-1]["episode"] = text[0][1]
+                        text = _extractRegex(r"(\d+:\d+:\d+)", description)
+                        start = "Unknown"
+                        if len(text["groups"]) > 0:
+                            start = text["groups"][0]
+                        text = _extractRegex(r"\((\d.*sec[s]?)\)",
+                                             text["remainder"])
+                        duration = text["groups"][0]
+                        text = _extractRegex(r"Ep. (\d+)x(\d+) \|",
+                                             text["remainder"])
+                        if text["groups"]:
+                            scenes[-1]["season"] = text["groups"][0]
+                            scenes[-1]["episode"] = text["groups"][1]
                             times.add(
-                                f"Ep {text[0][0]}x{text[0][1]} | {start}")
+                                f"Ep {text['groups'][0]}x{text['groups'][1]} | {start}"
+                            )
                         else:
-                            times.add(f"{start}")
+                            if start != "Unknown":
+                                times.add(f"{start}")
                         scenes[-1]["keywords"] = keywords
                         scenes[-1]["time"] = start
                         scenes[-1]["duration"] = duration
                         scenes[-1]["description"] = html.unescape(
-                            text[1].strip())
+                            text["remainder"].strip())
 
                 else:
                     safe = False
