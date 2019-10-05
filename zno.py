@@ -146,7 +146,7 @@ def getInfo(query):
             if "Nude" in severity:
                 if not maxSafeMode:
 
-                    safeKeywords = ["butt"]
+                    safeKeywords = ["butt", "underwear"]
 
                     celebPath = char.xpath(
                         '..//a')[0].attrib["href"] + "/nude_scene_guide"
