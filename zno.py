@@ -84,7 +84,7 @@ def _extractRegex(regex, text):
     }
 
 
-def getInfo(query):
+def getInfo(query, *args, **kwargs):
     """This will return the information of a title from a search term."""
 
     info = {}
@@ -149,12 +149,13 @@ def getInfo(query):
                 )
 
             # TODO adjustable
-            maxSafeMode = False
+            # maxSafeMode = False
 
             # add more info if nude scenes
             scenes = []
             if "Nude" in severity:
-                if not maxSafeMode:
+                if kwargs["verbose"]:
+                    # if not maxSafeMode:
 
                     safeKeywords = ["butt", "underwear", "thong"]
 
@@ -218,6 +219,7 @@ def getInfo(query):
 
                 else:
                     safe = False
+                    break
             else:
                 time.sleep(2)
 
@@ -234,4 +236,4 @@ def getInfo(query):
 
 
 if __name__ == "__main__":
-    pprint.pprint(getInfo(sys.argv[1]))
+    pprint.pprint(getInfo(sys.argv[1], verbose=True))
