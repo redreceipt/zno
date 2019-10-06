@@ -97,8 +97,6 @@ def getInfo(query):
     # pick the first one
     titlePath = titles[0].xpath('./div/a')[0].attrib["href"]
     info["imgSrc"] = titles[0].xpath('./div/a/img')[0].attrib["data-src"]
-    info["title"] = titles[0].xpath(
-        './/div[@class="caption"]/a')[0].attrib["title"]
 
     titlePage = browser.getPage(titlePath)
     titlePath = titlePage["path"]
@@ -116,6 +114,10 @@ def getInfo(query):
     with requests.Session() as s:
         browser.setSession(s)
         browser.login()
+
+        info["title"] = xml.xpath(
+            '//div[@class="featured-scene-description"]//a[@class="title"]/text()'
+        )[0]
 
         # get all title characters info
         chars = xml.xpath(
@@ -146,7 +148,7 @@ def getInfo(query):
             if "Nude" in severity:
                 if not maxSafeMode:
 
-                    safeKeywords = ["butt", "underwear"]
+                    safeKeywords = ["butt", "underwear", "thong"]
 
                     celebPath = char.xpath(
                         '..//a')[0].attrib["href"] + "/nude_scene_guide"
