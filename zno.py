@@ -148,14 +148,10 @@ def getInfo(query, *args, **kwargs):
                     f"Severity \"{severity}\" not found, can't decide if it's safe."
                 )
 
-            # TODO adjustable
-            # maxSafeMode = False
-
             # add more info if nude scenes
             scenes = []
             if "Nude" in severity:
                 if kwargs["verbose"]:
-                    # if not maxSafeMode:
 
                     safeKeywords = ["butt", "underwear", "thong"]
 

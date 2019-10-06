@@ -22,7 +22,7 @@ def search():
 @app.route("/title/<title>")
 def title(title):
     app.logger.debug(request.url)
-    info = getInfo(title)
+    info = getInfo(title, verbose=True)
     app.logger.debug(info)
     return render_template("title.html", info=info)
 
@@ -31,7 +31,7 @@ def title(title):
 @app.route('/api/title/<title>')
 def titleAPI(title):
     app.logger.debug(request.url)
-    return getInfo(escape(title))
+    return getInfo(escape(title), verbose=True)
 
 
 @app.errorhandler(404)
