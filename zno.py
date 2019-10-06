@@ -74,13 +74,14 @@ class ZnOBrowser:
 
 def _extractRegex(regex, text):
 
-    groups = []
-    remainder = text
     m = re.search(regex, text)
-    if m:
-        groups = m.groups()
-        remainder = text.replace(m[0], "")
-    return {"groups": groups, "remainder": remainder}
+    return {
+        "groups": m.groups(),
+        "remainder": text.replace(m[0], "")
+    } if m else {
+        "groups": [],
+        "remainder": text
+    }
 
 
 def getInfo(query):
@@ -123,22 +124,29 @@ def getInfo(query):
         chars = xml.xpath(
             '//div[@id="celebs-section"]//p[@class="h5 appearance-character"]')
         if chars == []:
+            print(tostring(xml))
             raise Exception("Something went wrong, HTML may have changed")
         for char in chars:
             nodes = char.xpath('./*')
-            if len(nodes) < 2:
+            if len(nodes) == 0:
+                name = "Unknown"
+                severity = "N/A"
+            elif len(nodes) == 1:
                 name = nodes[0].text
                 severity = "N/A"
-            else:
+            elif len(nodes) == 2:
                 name = nodes[1].text
                 severity = nodes[0].text
+            else:
+                continue
             celeb = char.xpath('..//a')[0].text
             print(celeb)
 
             if severity not in severityOptions:
+                print(tostring(char))
                 raise Exception(
-                    "Severity not found, can't decide if it's safe.\n" +
-                    str(tostring(char)))
+                    f"Severity \"{severity}\" not found, can't decide if it's safe."
+                )
 
             # TODO adjustable
             maxSafeMode = False
@@ -158,6 +166,7 @@ def getInfo(query):
                         f'//a[@href="{browser.baseURL + titlePath}"]/..//div[@class="media-body"]'
                     )
                     if len(media) < 1:
+                        print(tostring(xml))
                         raise Exception(
                             "Something went wrong, may not be logged in.")
 
@@ -174,7 +183,7 @@ def getInfo(query):
                         for keyword in keywords:
                             if keyword not in keywordOptions:
                                 raise Exception(
-                                    f"Keyword \"{keyword}\" not found, can't decide if it's safe.\n"
+                                    f"Keyword \"{keyword}\" not found, can't decide if it's safe."
                                 )
                             if keyword not in safeKeywords:
                                 safe = False
