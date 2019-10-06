@@ -107,7 +107,7 @@ def getInfo(query):
     severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
     keywordOptions = [
         "butt", "breasts", "body double", "underwear", "prosthetic", "lesbian",
-        "thong", "bush"
+        "thong", "bush", "merkin"
     ]
     info["people"] = []
     safe = True
@@ -185,7 +185,7 @@ def getInfo(query):
                         start = "Unknown"
                         if len(text["groups"]) > 0:
                             start = text["groups"][0]
-                        text = _extractRegex(r"\((\d.*sec[s]?)\)",
+                        text = _extractRegex(r"\((.*(min|sec).*)\)",
                                              text["remainder"])
                         duration = text["groups"][0]
                         text = _extractRegex(r"Ep. (\d+)x(\d+) \|",
