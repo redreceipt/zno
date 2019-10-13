@@ -116,9 +116,14 @@ def getInfo(query, *args, **kwargs):
         browser.setSession(s)
         browser.login()
 
-        info["title"] = xml.xpath(
-            '//div[@class="featured-scene-description"]//a[@class="title"]/text()'
-        )[0]
+        print(tostring(xml))
+        # TODO this isn't quite right, "Magicians" breaks it
+        try:
+            info["title"] = xml.xpath(
+                '//div[@class="featured-scene-description"]//a[@class="title"]/text()'
+            )[0]
+        except IndexError:
+            info["title"] = "Unknown"
 
         # get all title characters info
         chars = xml.xpath(
