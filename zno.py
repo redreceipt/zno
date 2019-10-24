@@ -116,7 +116,7 @@ def getInfo(query, *args, **kwargs):
         browser.setSession(s)
         browser.login()
 
-        print(tostring(xml))
+        # print(tostring(xml))
         # TODO this isn't quite right, "Magicians" breaks it
         try:
             info["title"] = xml.xpath(
@@ -163,6 +163,7 @@ def getInfo(query, *args, **kwargs):
                     celebPath = char.xpath(
                         '..//a')[0].attrib["href"] + "/nude_scene_guide"
 
+                    # TODO "the boys" breaks this
                     xml = browser.getPage(celebPath)["tree"]
                     media = xml.xpath(
                         f'//a[@href="{browser.baseURL + titlePath}"]/..//div[@class="media-body"]'
