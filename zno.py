@@ -92,6 +92,7 @@ def getInfo(query, *args, **kwargs):
 
     severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
     keywordOptions = [
+        "bikini",
         "butt",
         "breasts",
         "body double",
@@ -102,7 +103,7 @@ def getInfo(query, *args, **kwargs):
         "bush",
         "merkin",
     ]
-    safe_keyword_options = ["butt", "underwear", "thong"]
+    safe_keyword_options = ["butt", "underwear", "thong", "bikini"]
     times = set([])
 
     with requests.Session() as s:

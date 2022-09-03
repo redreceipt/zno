@@ -5,17 +5,17 @@ from zno import getInfo
 app = Flask(__name__)
 
 
-@app.route('/')
+@app.route("/")
 def index():
-    return redirect(url_for('search'))
+    return redirect(url_for("search"))
 
 
-@app.route('/search', methods=["GET", "POST"])
+@app.route("/search", methods=["GET", "POST"])
 def search():
-    if request.method == 'GET':
+    if request.method == "GET":
         return render_template("search.html")
     else:
-        return redirect(url_for('title', title=request.form["query"]))
+        return redirect(url_for("title", title=request.form["query"]))
 
 
 # TODO rebuild URL to correct title
@@ -28,7 +28,7 @@ def title(title):
 
 
 # TODO authenticate this
-@app.route('/api/title/<title>')
+@app.route("/api/title/<title>")
 def titleAPI(title):
     app.logger.debug(request.url)
     return getInfo(escape(title), verbose=True)
