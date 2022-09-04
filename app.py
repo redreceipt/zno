@@ -1,36 +1,28 @@
-from flask import Flask, escape, redirect, render_template, request, url_for
+import os
+from flask import Flask, escape, render_template, request, flash
 
 from zno import getInfo
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY") or b'_5#y2L"F4Q8z\n\xec]/'
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return redirect(url_for("search"))
-
-
-@app.route("/search", methods=["GET", "POST"])
-def search():
     if request.method == "GET":
-        return render_template("search.html")
+        return render_template("index.html")
     else:
-        return redirect(url_for("title", title=request.form["query"]))
-
-
-# TODO rebuild URL to correct title
-@app.route("/title/<title>")
-def title(title):
-    app.logger.debug(request.url)
-    info = getInfo(title, verbose=True)
-    app.logger.debug(info)
-    return render_template("title.html", info=info)
+        info = getInfo(request.form["query"], verbose=True)
+        if not len(info.keys()):
+            flash("No title found")
+            return render_template("index.html")
+        app.logger.debug(info)
+        return render_template("title.html", info=info)
 
 
 # TODO authenticate this
 @app.route("/api/title/<title>")
 def titleAPI(title):
-    app.logger.debug(request.url)
     return getInfo(escape(title), verbose=True)
 
 

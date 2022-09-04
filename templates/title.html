@@ -1,24 +1,18 @@
-{% extends "base.html" %}
-
-{% block header %}
+{% extends "base.html" %} {% block header %}
 <h1>{% block title %}{{info["title"]}}{% endblock %}</h1>
-{% endblock %}
-
-{% block content %}
-<img src={{info["imgSrc"]}} />
-{% if info["safe"] %}
-<span style="color:green; margin-left: 2em;">
-	<i class="fas fa-check-circle fa-5x"></i>
+{% endblock %} {% block content %} <img src={{info["imgSrc"]}} /> {% if
+info["safe"] %}
+<span style="color: green; margin-left: 2em">
+  <i class="fas fa-check-circle fa-5x"></i>
 </span>
 {% else %}
-<span style="color:red; margin-left: 2em;">
-	<i class="fas fa-exclamation-circle fa-5x"></i>
+<span style="color: red; margin-left: 2em">
+  <i class="fas fa-exclamation-circle fa-5x"></i>
 </span>
 <h3>Nude Scenes</h3>
 <ul>
-{% for time in info["times"] %}
-	<li>{{time}}</li>
-{% endfor %}
+  {% for time in info["times"] %}
+  <li>{{time}}</li>
+  {% endfor %}
 </ul>
-{% endif %}
-{% endblock %}
+{% endif %} {% endblock %}

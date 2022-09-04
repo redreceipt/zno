@@ -184,15 +184,15 @@ def getInfo(query, *args, **kwargs):
                             description.replace(duration, "") if m else description
                         )
 
-                        m = re.search(r"Ep. (\d+)x(\d+) \|", description)
+                        m = re.search(r"Ep. (\d+)x(\d+) \|?", description)
                         tv = m.groups() if m else None
                         if tv:
                             scenes[-1]["season"] = tv[0]
                             scenes[-1]["episode"] = tv[1]
                             times.add(f"Ep {tv[0]}x{tv[1]} | {start}")
                             description = description.replace(
-                                f"Ep. {tv[0]}x{tv[1]} |", ""
-                            )
+                                f"Ep. {tv[0]}x{tv[1]}", ""
+                            ).replace("|", "")
 
                         # movie
                         else:
