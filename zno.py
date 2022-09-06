@@ -76,20 +76,6 @@ def getInfo(query, *args, **kwargs):
     info = {"people": [], "safe": True}
     browser = ZnOBrowser()
 
-    # search for the title
-    search_page = browser.get_page("/search/titles?term=" + query)
-    titles = search_page["tree"].xpath('//div[@class="thumbnail title"]')
-    if titles == []:
-        return {}
-
-    # pick the first one
-    title_path = titles[0].xpath("./div/a")[0].attrib["href"]
-    info["imgSrc"] = titles[0].xpath("./div/a/img")[0].attrib["data-src"]
-    info["title"] = titles[0].xpath('//div[@class="caption"]/a')[0].attrib["title"]
-
-    # go to the title page
-    title_page = browser.get_page(title_path)
-
     severityOptions = ["N/A", "Nude", "Sexy", "Nude - Body Double"]
     keywordOptions = [
         "bikini",
@@ -109,6 +95,22 @@ def getInfo(query, *args, **kwargs):
     with requests.Session() as s:
         browser.session = s
         browser.login()
+
+        # search for the title
+        search_page = browser.get_page("/search/titles?term=" + query)
+        titles = search_page["tree"].xpath('//div[@class="thumbnail title"]')
+        print(tostring(search_page["tree"]))
+        if titles == []:
+            # webbrowser.open(search_page["url"])
+            return {}
+
+        # pick the first one
+        title_path = titles[0].xpath("./div/a")[0].attrib["href"]
+        info["imgSrc"] = titles[0].xpath("./div/a/img")[0].attrib["data-src"]
+        info["title"] = titles[0].xpath('//div[@class="caption"]/a')[0].attrib["title"]
+
+        # go to the title page
+        title_page = browser.get_page(title_path)
 
         # get all title characters info
         chars = title_page["tree"].xpath(
